@@ -101,6 +101,7 @@ export default function Landing() {
       )}
 
       <p id="msg" role="alert">{msg}</p>
+      <p className="meta"><a href="/privacy">개인정보 처리방침</a></p>
     </section>
   );
 }

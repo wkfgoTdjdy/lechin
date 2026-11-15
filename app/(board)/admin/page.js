@@ -28,6 +28,16 @@ function Admin() {
     load();
   }
 
+  // 공지: '자유' 게시판에 "[공지] 제목" 글이 올라가고 모든 회원에게 알림이 간다 (supabase/007)
+  async function announce(e) {
+    e.preventDefault();
+    const form = e.target, { title, body } = Object.fromEntries(new FormData(form));
+    if (!confirm('모든 회원에게 알림이 가요. 공지를 보낼까요?')) return;
+    const { error } = await supabase.rpc('announce', { p_title: title.trim(), p_body: body.trim() });
+    setMsg(error ? '공지를 보내지 못했어요: ' + error.message : '공지를 보냈어요.');
+    if (!error) form.reset();
+  }
+
   if (!member.is_admin) return <p className="empty">운영자만 볼 수 있어요.</p>;
   return (
     <section>
@@ -49,6 +59,13 @@ function Admin() {
         ))}
         {reports?.length === 0 && <li className="empty">대기 중인 신고가 없어요.</li>}
       </ul>
+      <h1>공지 보내기</h1>
+      <form id="writeForm" onSubmit={announce}>
+        <label>제목 <input type="text" name="title" maxLength={70} required /></label>
+        <label>내용 <textarea name="body" rows={6} maxLength={5000} required /></label>
+        <p className="meta" style={{ whiteSpace: 'normal', margin: 0 }}>개인정보 처리방침을 바꿀 때는 시행 7일 전에 여기로 알려요.</p>
+        <div className="row"><button>모든 회원에게 보내기</button></div>
+      </form>
       <p id="msg" role="alert">{msg}</p>
     </section>
   );
