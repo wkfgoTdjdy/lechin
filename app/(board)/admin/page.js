@@ -5,6 +5,7 @@ import MembersOnly from '@/components/MembersOnly';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { ago } from '@/lib/board';
+import Invites from '@/components/Invites';
 
 const ACTIONS = { none: '문제없음', hide: '숨김', warn: '숨김+경고', suspend7: '7일 정지', ban: '영구 정지' };
 
@@ -59,6 +60,9 @@ function Admin() {
         ))}
         {reports?.length === 0 && <li className="empty">대기 중인 신고가 없어요.</li>}
       </ul>
+      <h1>운영자 초대 코드</h1>
+      <p className="meta" style={{ whiteSpace: 'normal' }}>이메일로 요청받은 분께 드리는 코드예요. 하나를 한 번만 쓸 수 있어요.</p>
+      <Invites fn="admin_invites" create="admin_new_invite" />
       <h1>공지 보내기</h1>
       <form id="writeForm" onSubmit={announce}>
         <label>제목 <input type="text" name="title" maxLength={70} required /></label>

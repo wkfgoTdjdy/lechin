@@ -5,6 +5,7 @@ import MembersOnly from '@/components/MembersOnly';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 import { CATEGORIES } from '@/lib/board';
+import Invites from '@/components/Invites';
 
 const KINDS = { comment: '내 글에 댓글', rsvp: '참가 신청·확정', meetup: '모임 변경·취소' };
 
@@ -54,6 +55,8 @@ function Me() {
           ))}
         </div>
         <div className="row"><button>저장</button></div>
+        <strong>내 초대 코드 (한 계정에 3개)</strong>
+        <Invites fn="my_invites" />
         <strong>차단한 회원</strong>
         {blocked.size === 0 && <span className="meta">없어요.</span>}
         {[...blocked].map(([id, nick]) => (

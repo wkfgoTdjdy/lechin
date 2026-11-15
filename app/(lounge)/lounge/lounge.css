@@ -23,6 +23,11 @@
   #panel li.used { opacity: .5; text-decoration: line-through; }
   #cam { position: fixed; right: 12px; top: 12px; display: flex; gap: 6px; }
   #cam button { width: 40px; height: 40px; padding: 0; font-size: 18px; }
+  /* 조이스틱: 터치 화면에서만 보인다 */
+  #stick { display: none; position: fixed; left: 18px; bottom: 132px; width: 116px; height: 116px; border-radius: 50%; background: #fff5;
+           border: 2px solid #fff9; touch-action: none; user-select: none; -webkit-user-select: none; }
+  #stick i { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: #fffd; box-shadow: 0 2px 6px #0004; }
+  @media (pointer: coarse) { #stick { display: block; } }
   #ui { position: fixed; left: 0; right: 0; bottom: 14px; display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; }
   #ui > * { pointer-events: auto; }
   #acts { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }

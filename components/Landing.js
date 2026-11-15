@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
+import { CONTACT } from '@/lib/board';
 
 const PLEDGE = '이곳이 성인 여성 전용 공간임을 확인했고, 저는 만 19세 이상 여성입니다.';
 
@@ -101,7 +102,8 @@ export default function Landing() {
       )}
 
       <p id="msg" role="alert">{msg}</p>
-      <p className="meta"><a href="/privacy">개인정보 처리방침</a></p>
+      {/* 제목에는 서비스 이름을 넣지 않는다 (메일함에서 서비스 성격이 드러나지 않게) */}
+      <p className="meta"><a href={`mailto:${CONTACT}?subject=${encodeURIComponent('초대 코드 요청')}`}>초대 코드가 없나요? 이메일로 요청하기</a> · <a href="/privacy">개인정보 처리방침</a></p>
     </section>
   );
 }

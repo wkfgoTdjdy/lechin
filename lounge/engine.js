@@ -70,7 +70,7 @@ document.getElementById('cam').addEventListener('click', (e) => {
   const step = CAM_STEPS[e.target.dataset?.cam];
   if (step) moveCam(...step);
 });
-let dragged = 0;   // 이번 누름에서 끌린 거리(px). 끌었으면 걷기(click)로 치지 않는다
+let dragged = 0;   // 이번 누름에서 처음 자리로부터 가장 멀리 간 거리(px). 끌었으면 걷기(click)로 치지 않는다
 {
   // 마우스: 오른쪽 버튼 드래그 = 회전. 터치: 한 손가락 드래그 = 회전, 두 손가락 벌리기·오므리기 = 줌. (톡 누르기 = 걷기는 아래 click)
   const el = renderer.domElement;
@@ -81,7 +81,7 @@ let dragged = 0;   // 이번 누름에서 끌린 거리(px). 끌었으면 걷기
   el.addEventListener('pointerdown', (e) => {
     dragged = 0;
     if (e.pointerType !== 'touch' && e.button !== 2) return;
-    pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    pts.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
     el.setPointerCapture(e.pointerId);
   });
   el.addEventListener('pointermove', (e) => {
@@ -90,7 +90,7 @@ let dragged = 0;   // 이번 누름에서 끌린 거리(px). 끌었으면 걷기
     const before = pts.size === 2 ? spread() : 0;
     const dx = e.clientX - p.x, dy = e.clientY - p.y;
     p.x = e.clientX; p.y = e.clientY;
-    dragged += Math.abs(dx) + Math.abs(dy);
+    dragged = Math.max(dragged, Math.hypot(e.clientX - p.x0, e.clientY - p.y0));   // 손끝이 떨리는 정도는 끈 것으로 치지 않는다
     if (pts.size === 1) moveCam(-dx * 0.006, dy * 0.005, 1);
     else if (before > 0) moveCam(0, 0, before / Math.max(spread(), 1));
   });
@@ -788,7 +788,7 @@ if (q.has('sit')) toggleSit();   // 확인용: ?at=-3.5,2&sit
 const ray = new THREE.Raycaster();
 const floor = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), seatTop = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.4);
 renderer.domElement.addEventListener('click', (e) => {
-  if (dragged > 8) return;   // 끌었으면 카메라 조작이었다
+  if (dragged > 12) return;   // 끌었으면 카메라 조작이었다
   ray.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), camera);
   const top = ray.ray.intersectPlane(seatTop, new THREE.Vector3());
   const seat = top ? nearestSeat(top.x, top.z, 0.6) : -1;
@@ -802,6 +802,24 @@ renderer.domElement.addEventListener('click', (e) => {
 const MOVE_KEYS = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
                     KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 const held = new Set();
+// 터치 화면용 동그란 조이스틱 (왼쪽 아래). 민 방향으로 걷는다. 키보드와 같은 길(applyKeys)을 탄다.
+const stick = { x: 0, z: 0 };
+{
+  const base = document.getElementById('stick'), knob = base.firstElementChild;
+  const move = (e) => {
+    const r = base.getBoundingClientRect(), R = r.width / 2;
+    let dx = e.clientX - r.left - R, dy = e.clientY - r.top - R;
+    const len = Math.hypot(dx, dy), k = len > R ? R / len : 1;
+    dx *= k; dy *= k;
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
+    const dead = len < R * 0.2;   // 가운데 근처는 멈춤
+    stick.x = dead ? 0 : dx / R; stick.z = dead ? 0 : dy / R;
+  };
+  const stop = () => { stick.x = stick.z = 0; knob.style.transform = ''; };
+  base.addEventListener('pointerdown', (e) => { base.setPointerCapture(e.pointerId); move(e); e.preventDefault(); });
+  base.addEventListener('pointermove', (e) => { if (base.hasPointerCapture(e.pointerId)) move(e); });
+  for (const type of ['pointerup', 'pointercancel']) base.addEventListener(type, stop);
+}
 let keyWalking = false;
 const chatInput = document.getElementById('chat');
 addEventListener('keydown', (e) => {
@@ -822,7 +840,7 @@ addEventListener('keyup', (e) => held.delete(e.code));
 addEventListener('blur', () => held.clear());   // 창을 벗어나면 keyup을 못 받으므로
 chatInput.addEventListener('focus', () => held.clear());
 function applyKeys() {
-  let x = 0, z = 0;
+  let x = stick.x, z = stick.z;
   for (const code of held) { x += MOVE_KEYS[code][0]; z += MOVE_KEYS[code][1]; }
   if (x || z) {
     setSeat(-1);
@@ -1077,7 +1095,7 @@ function tendBar(dt, t) {
   pose(bartender, moving, t);
   placeBubble(bartender, t);
 }
-function showHud() { hud.textContent = `📍 ${myRoom.name} · ` + (online ? `접속 ${online}명` : '혼자 모드'); }
+function showHud() { hud.textContent = `📍 ${myRoom.name} · ` + (online ? `접속 ${online}명` : supabase ? '연결 중…' : '혼자 모드'); }
 
 // ── 다른 사람들 ──────────────────────────────────────
 const others = new Map();   // id → { mesh, target }
@@ -1140,7 +1158,9 @@ if (supabase) {
   try {
     await supabase.realtime.setAuth();   // 로그인한 회원 자격으로 접속 (비공개 채널은 회원만 통과)
     const channel = supabase.channel('lounge', { config: { private: true, presence: { key: myId } } });
-    let live = false, sent = null;
+    let tracked = false, sent = null, sentAt = 0;
+    // 채널에 실제로 붙어 있는지는 채널에게 직접 묻는다 (끊겼다가 저절로 다시 붙는 경우가 있어서, 처음 한 번 받은 신호만 믿지 않는다)
+    const live = () => channel.state === 'joined';
 
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
@@ -1149,7 +1169,7 @@ if (supabase) {
         const s = state[id].at(-1) ?? {};
         if (!others.has(id)) {
           const mesh = makeAvatar(validCat(s.cat), CLOSET.x, CLOSET.z);
-          others.set(id, { mesh, target: new THREE.Vector3(CLOSET.x, 0, -3) });
+          others.set(id, { mesh, target: new THREE.Vector3(CLOSET.x, 0, -3), fresh: true });   // fresh: 아직 위치를 한 번도 못 받음
         }
         // 남이 보낸 동작·자리는 아는 값일 때만 받는다
         const o = others.get(id), u = o.mesh.userData, act = ACTS.includes(s.act) ? s.act : 'idle';
@@ -1171,26 +1191,30 @@ if (supabase) {
     channel.on('broadcast', { event: 'pos' }, ({ payload }) => {
       const o = others.get(payload?.id);
       const p = clampPos(payload?.x, payload?.z);
-      if (o && p && o.mesh.userData.seat < 0) o.target.set(p.x, 0, p.z);
+      if (!o || !p) return;
+      if (o.fresh) { o.fresh = false; o.mesh.position.set(p.x, floorY(p.x, p.z), p.z); }   // 처음 받은 위치로는 걸어오지 않고 바로 그 자리에 선다
+      if (o.mesh.userData.seat < 0 || o.target.distanceTo(new THREE.Vector3(p.x, 0, p.z)) > 0.6) o.target.set(p.x, 0, p.z);   // 앉아 있다는 정보가 늦게 바뀌어도, 자리를 떠났으면 따라간다
     });
     // ponytail: 방 구분은 받는 쪽에서 거른다(같은 채널). 진짜 비공개가 필요하면 방마다 채널을 나눌 것.
     channel.on('broadcast', { event: 'chat' }, ({ payload }) => {
       const o = others.get(payload?.id);
       if (o && payload.room === myRoom?.id && typeof payload.text === 'string') say(o.mesh, (o.mesh.userData.nick ? o.mesh.userData.nick + ': ' : '') + payload.text.slice(0, 200));
     });
-    net.state = () => { if (live) channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };
-    net.chat = (text) => { if (live) channel.send({ type: 'broadcast', event: 'chat', payload: { id: myId, room: myRoom.id, text } }); };
-    channel.subscribe((status) => {
-      live = status === 'SUBSCRIBED';
-      if (live) net.state();
-      else { online = 0; showHud(); }
+    net.state = () => { if (!live()) return; sent = null; channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };
+    net.chat = (text) => { if (live()) channel.send({ type: 'broadcast', event: 'chat', payload: { id: myId, room: myRoom.id, text } }); };
+    channel.subscribe((status, err) => {
+      if (status === 'SUBSCRIBED') return;   // 접속 알리기는 아래 주기 작업이 한다
+      console.warn('lounge channel', status, err);
+      tracked = false; online = 0; showHud();
     });
 
     // ponytail: 위치를 누구나 속여 보낼 수 있음(서버 검증 없음). 판정이 필요해지면 권위 서버로.
     setInterval(() => {
+      if (!live()) return;
+      if (!tracked) { tracked = true; net.state(); }   // 처음 붙었을 때, 끊겼다 다시 붙었을 때 접속을 알린다
       const { x, z } = me.position;
-      if (!live || (sent && sent.x === x && sent.z === z)) return;
-      sent = { x, z };
+      if ((sent && sent.x === x && sent.z === z && now() - sentAt < 2)) return;   // 가만히 있어도 2초마다 다시 보낸다 (놓친 사람·늦게 온 사람이 내 자리를 알게)
+      sent = { x, z }; sentAt = now();
       channel.send({ type: 'broadcast', event: 'pos', payload: { id: myId, x, z } });
     }, 100);
   } catch (err) {
