@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase';
 import { when } from '@/lib/board';
 
 const LABEL = { going: '참가 확정', waiting: '대기 중', pending: '수락 기다리는 중' };
+const DETAIL = { going: '✅ 참가가 확정됐어요', waiting: '⏳ 대기 중이에요 (자리가 나면 자동으로 확정)', pending: '⏳ 여는 사람의 수락을 기다리는 중이에요' };
 
 // 글에 붙은 모임 정보 + 참가 신청. 모임이 아닌 글이면 아무것도 그리지 않는다.
 export default function Meetup({ id, isHost, memberId }) {
@@ -51,8 +52,9 @@ export default function Meetup({ id, isHost, memberId }) {
 
       {!isHost && open && !mine && <button type="button" onClick={() => run(supabase.rpc('join_meetup', { p_meetup: id }))}>참가 신청</button>}
       {!isHost && mine && (
-        <p>{LABEL[mine.status]}{' '}
-          {open && <button type="button" className="link" onClick={() => run(supabase.from('rsvps').delete().eq('meetup_id', id).eq('member', memberId))}>취소</button>}
+        <p><strong>{DETAIL[mine.status]}</strong>{' '}
+          {/* 확정된 뒤에도 취소할 수 있다. 취소하면 여는 사람에게 알림이 간다 (supabase/011) */}
+          {open && <button type="button" className="link" onClick={() => confirm(mine.status === 'going' ? '참가를 취소할까요? 여는 사람에게 알림이 가요.' : '신청을 취소할까요?') && run(supabase.from('rsvps').delete().eq('meetup_id', id).eq('member', memberId))}>{mine.status === 'going' ? '참가 취소' : '신청 취소'}</button>}
         </p>
       )}
 

@@ -11,6 +11,7 @@ const SPEED = 4;                 // 초당 이동 거리
 const BX = 14.5, Z_MIN = -5.5, Z_MAX = 31.5;   // 걸을 수 있는 범위 (오두막 + 앞마당 + 운동장)
 const now = () => performance.now() / 1000;
 const hud = document.getElementById('hud');
+let debugOn = false;   // 왼쪽 위 표시를 누르면 켜지는 연결 진단
 
 // ── 방 ───────────────────────────────────────────────
 // 가운데가 라운지 홀, 양옆에 취미 방 두 개씩, 앞문 밖은 마당, 그 너머가 운동장. 채팅은 같은 공간 사람에게만 보인다.
@@ -749,7 +750,7 @@ statusInput.addEventListener('change', () => {
 const target = me.position.clone();   // 입장 연출이 시작되면 벽장 밖으로 걸어 나온다
 let myRoom = null, online = 0;
 // 멀티플레이가 켜지면 남에게 알리는 함수로 바뀐다
-const net = { state() {}, chat() {} };
+const net = { state() {}, chat() {}, debug: () => '연결 없음' };
 
 // 동작이 끝나는 시간(초)과 그다음 동작. 커피 4초(두 모금), 술 4초 → 취함 15초 → 원래대로
 const NEXT = { coffee: [4, 'idle'], beer: [4, 'drunk'], drunk: [15, 'idle'], laugh: [3, 'idle'], wave: [2.5, 'idle'], bow: [1.6, 'idle'], clap: [3, 'idle'],
@@ -893,12 +894,14 @@ document.querySelector('#menu > div').addEventListener('click', () => { document
 function openPanel(title) {
   document.getElementById('panelTitle').textContent = title;
   panelBody.replaceChildren();
+  panel.classList.remove('full');
   panel.hidden = false;
 }
 document.getElementById('panelClose').addEventListener('click', () => { panel.hidden = true; });
 // 취미 공간의 모임 게시대: 게시판과 같은 글·모임을 읽는다. 글은 새 탭에서 열려 오두막에 그대로 머문다.
 async function openHobby(hobby) {
   openPanel(`📋 ${hobby} 모임 게시대`);
+  panel.classList.add('full');   // 게시대는 화면을 가득 채운다 (✕ 로 닫는다)
   boardCss();
   const [m, a] = await Promise.all([
     supabase.from('meetups').select('article_id, starts_at, sido, district, capacity, articles!inner(title, category), rsvps(count)')
@@ -1095,7 +1098,9 @@ function tendBar(dt, t) {
   pose(bartender, moving, t);
   placeBubble(bartender, t);
 }
-function showHud() { hud.textContent = `📍 ${myRoom.name} · ` + (online ? `접속 ${online}명` : supabase ? '연결 중…' : '혼자 모드'); }
+// 왼쪽 위 표시를 누르면 연결 진단 정보가 함께 나온다 (다른 사람이 안 움직여 보일 때 원인을 찾는 용도)
+hud.addEventListener('click', () => { debugOn = !debugOn; showHud(); });
+function showHud() { hud.textContent = `📍 ${myRoom.name} · ` + (online ? `접속 ${online}명` : supabase ? '연결 중…' : '혼자 모드') + (debugOn ? '\n' + net.debug() : ''); }
 
 // ── 다른 사람들 ──────────────────────────────────────
 const others = new Map();   // id → { mesh, target }
@@ -1161,6 +1166,10 @@ if (supabase) {
     let tracked = false, sent = null, sentAt = 0;
     // 채널에 실제로 붙어 있는지는 채널에게 직접 묻는다 (끊겼다가 저절로 다시 붙는 경우가 있어서, 처음 한 번 받은 신호만 믿지 않는다)
     const live = () => channel.state === 'joined';
+    const stat = { status: '-', sent: 0, sentAt: 0, fail: 0, tracks: 0, recv: new Map() };   // 진단용 숫자
+    const since = (at) => (at ? (now() - at).toFixed(0) + '초 전' : '없음');
+    net.debug = () => [`채널 ${channel.state} (${stat.status})`, `내 위치 보냄 ${stat.sent}번 · 마지막 ${since(stat.sentAt)} · 실패 ${stat.fail}`, `접속 알림 ${stat.tracks}번`,
+      ...[...others].map(([id, o]) => { const r = stat.recv.get(id); return `${o.mesh.userData.nick || id.slice(0, 4)}: 위치 받음 ${r?.n ?? 0}번 · 마지막 ${since(r?.at)}`; })].join('\n');
 
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
@@ -1191,6 +1200,8 @@ if (supabase) {
     channel.on('broadcast', { event: 'pos' }, ({ payload }) => {
       const o = others.get(payload?.id);
       const p = clampPos(payload?.x, payload?.z);
+      const r = stat.recv.get(payload?.id) ?? { n: 0, at: 0 };
+      r.n++; r.at = now(); stat.recv.set(payload?.id, r);
       if (!o || !p) return;
       if (o.fresh) { o.fresh = false; o.mesh.position.set(p.x, floorY(p.x, p.z), p.z); }   // 처음 받은 위치로는 걸어오지 않고 바로 그 자리에 선다
       if (o.mesh.userData.seat < 0 || o.target.distanceTo(new THREE.Vector3(p.x, 0, p.z)) > 0.6) o.target.set(p.x, 0, p.z);   // 앉아 있다는 정보가 늦게 바뀌어도, 자리를 떠났으면 따라간다
@@ -1200,9 +1211,10 @@ if (supabase) {
       const o = others.get(payload?.id);
       if (o && payload.room === myRoom?.id && typeof payload.text === 'string') say(o.mesh, (o.mesh.userData.nick ? o.mesh.userData.nick + ': ' : '') + payload.text.slice(0, 200));
     });
-    net.state = () => { if (!live()) return; sent = null; channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };
+    net.state = () => { if (!live()) return; sent = null; stat.tracks++; channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };
     net.chat = (text) => { if (live()) channel.send({ type: 'broadcast', event: 'chat', payload: { id: myId, room: myRoom.id, text } }); };
     channel.subscribe((status, err) => {
+      stat.status = status;
       if (status === 'SUBSCRIBED') return;   // 접속 알리기는 아래 주기 작업이 한다
       console.warn('lounge channel', status, err);
       tracked = false; online = 0; showHud();
@@ -1215,7 +1227,9 @@ if (supabase) {
       const { x, z } = me.position;
       if ((sent && sent.x === x && sent.z === z && now() - sentAt < 2)) return;   // 가만히 있어도 2초마다 다시 보낸다 (놓친 사람·늦게 온 사람이 내 자리를 알게)
       sent = { x, z }; sentAt = now();
-      channel.send({ type: 'broadcast', event: 'pos', payload: { id: myId, x, z } });
+      stat.sent++; stat.sentAt = now();
+      channel.send({ type: 'broadcast', event: 'pos', payload: { id: myId, x, z } }).then((res) => { if (res !== 'ok') stat.fail++; }, () => { stat.fail++; });
+      if (debugOn) showHud();
     }, 100);
   } catch (err) {
     console.error(err);
