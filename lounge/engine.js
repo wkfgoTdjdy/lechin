@@ -1137,7 +1137,7 @@ renderer.setAnimationLoop(() => {
   pose(me, moving, t);
   refreshRoom();
   tendBar(dt, t);
-  // 남은 조금 더 빠르게 따라가게 해서 10Hz 사이를 메운다
+  // 남은 조금 더 빠르게 따라가게 해서 위치 신호(1초에 4번) 사이를 메운다
   for (const o of others.values()) {
     pose(o.mesh, walk(o.mesh, o.target, SPEED * 2 * dt, false), t);
     o.mesh.position.y += (floorY(o.mesh.position.x, o.mesh.position.z) - o.mesh.position.y) * settle;
@@ -1214,7 +1214,7 @@ if (supabase) {
     net.state = () => { if (!live()) return; sent = null; stat.tracks++; channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };
     net.chat = (text) => { if (live()) channel.send({ type: 'broadcast', event: 'chat', payload: { id: myId, room: myRoom.id, text } }); };
     channel.subscribe((status, err) => {
-      stat.status = status;
+      stat.status = status + (err ? ' ' + (err.message ?? err) : '');
       if (status === 'SUBSCRIBED') return;   // 접속 알리기는 아래 주기 작업이 한다
       console.warn('lounge channel', status, err);
       tracked = false; online = 0; showHud();
@@ -1225,12 +1225,12 @@ if (supabase) {
       if (!live()) return;
       if (!tracked) { tracked = true; net.state(); }   // 처음 붙었을 때, 끊겼다 다시 붙었을 때 접속을 알린다
       const { x, z } = me.position;
-      if ((sent && sent.x === x && sent.z === z && now() - sentAt < 2)) return;   // 가만히 있어도 2초마다 다시 보낸다 (놓친 사람·늦게 온 사람이 내 자리를 알게)
+      if ((sent && sent.x === x && sent.z === z && now() - sentAt < 5)) return;   // 가만히 있어도 5초마다 다시 보낸다 (놓친 사람·늦게 온 사람이 내 자리를 알게)
       sent = { x, z }; sentAt = now();
       stat.sent++; stat.sentAt = now();
       channel.send({ type: 'broadcast', event: 'pos', payload: { id: myId, x, z } }).then((res) => { if (res !== 'ok') stat.fail++; }, () => { stat.fail++; });
       if (debugOn) showHud();
-    }, 100);
+    }, 250);   // 1초에 4번. Supabase 무료 요금제는 프로젝트 전체가 1초에 100개까지라, 10번씩 보내면 몇 명만 같이 걸어도 넘겨서 채널이 끊긴다
   } catch (err) {
     console.error(err);
   }
