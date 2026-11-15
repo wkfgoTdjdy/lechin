@@ -1,0 +1,88 @@
+/* 게시판·로그인 화면 스타일 */
+  :root { --paper: #f6efe3; --card: #fffaf2; --ink: #33261b; --soft: #7b6a5b; --line: #e3d6c3; --wood: #6e4428; --amber: #f0a64a; }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font: 16px/1.6 system-ui, sans-serif; }
+  a { color: inherit; }
+  button, .btn { padding: 9px 16px; border: 0; border-radius: 999px; background: var(--amber); color: #2a1a0c; font: inherit; font-weight: 700;
+                 text-decoration: none; cursor: pointer; white-space: nowrap; }
+  button:hover, .btn:hover, button:focus-visible, .btn:focus-visible { background: #ffc06a; }
+  button:disabled { opacity: .5; cursor: wait; }
+  button.link { padding: 4px; background: none; color: inherit; font-weight: 400; text-decoration: underline; }
+  input, textarea, select { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font: inherit; }
+  input[type=checkbox] { width: auto; }
+  label { display: grid; gap: 4px; font-size: 14px; }
+  label.check { display: flex; gap: 8px; align-items: flex-start; }
+
+  /* 맨 위 줄: 이름 · 오두막 들어가기 · 내 정보 */
+  #top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 16px; background: var(--wood); color: #f6e7d3; }
+  #top .brand { margin-right: auto; font-size: 19px; font-weight: 700; text-decoration: none; }
+  #who { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  main { width: min(820px, 100%); margin: 0 auto; padding: 20px 16px 60px; }
+  #msg { min-height: 1.6em; margin: 12px 0 0; color: #a4451f; font-size: 15px; }
+
+  /* 로그인 전 화면 */
+  #landing { text-align: center; padding-top: 12px; }
+  #landing h1 { margin: 18px 0 6px; font-size: clamp(28px, 6vw, 40px); line-height: 1.2; }
+  #landing > p { margin: 0 auto 22px; max-width: 30em; color: var(--soft); }
+  #landing form { display: grid; gap: 10px; width: min(340px, 100%); margin: 0 auto; text-align: left; }
+  #tabs { display: flex; justify-content: center; gap: 6px; margin-bottom: 14px; }
+  #tabs button { background: var(--line); font-weight: 400; }
+  #tabs button[aria-pressed=true] { background: var(--ink); color: var(--paper); font-weight: 700; }
+  .closet { position: relative; width: 130px; aspect-ratio: 3 / 4; margin: 0 auto; border: 8px solid var(--wood); border-radius: 8px;
+            background: #150d08; perspective: 700px; box-shadow: 0 10px 26px #0004; }
+  .cat { position: absolute; left: 14%; bottom: 4%; width: 72%; animation: peek 2.4s ease-in-out infinite alternate; }
+  .door { position: absolute; top: 0; bottom: 0; width: 50%; background: linear-gradient(90deg, #8a5a3a, #a06c45 50%, #8a5a3a);
+          box-shadow: inset 0 0 0 7px #7a4d30, inset 0 0 0 9px #5d3922; }
+  .door.l { left: 0; transform-origin: left center; transform: rotateY(-8deg); }
+  .door.r { right: 0; transform-origin: right center; animation: ajar 2.4s ease-in-out infinite alternate; }
+  @keyframes ajar { from { transform: rotateY(18deg); } to { transform: rotateY(62deg); } }
+  @keyframes peek { from { transform: translate(-6%, 8%); } to { transform: translate(8%, 0); } }
+  @media (prefers-reduced-motion: reduce) { .cat, .door.r { animation: none; } .door.r { transform: rotateY(50deg); } }
+
+  /* 게시판 */
+  .bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  #cats { display: flex; gap: 6px; flex-wrap: wrap; margin-right: auto; }
+  #cats a { padding: 6px 13px; border-radius: 999px; background: var(--line); font-size: 15px; text-decoration: none; }
+  #cats a[aria-current=page] { background: var(--ink); color: var(--paper); font-weight: 700; }
+  .list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--card); overflow: hidden; }
+  .list li + li { border-top: 1px solid var(--line); }
+  .list a { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; padding: 12px 16px; text-decoration: none; }
+  .list a:hover, .list a:focus-visible { background: #f8ecd8; }
+  .list .title { flex: 1 1 200px; font-weight: 600; overflow-wrap: anywhere; }
+  .tagc { padding: 1px 9px; border-radius: 999px; background: #f3dfc2; font-size: 13px; white-space: nowrap; }
+  .count { color: #c2621f; font-weight: 700; }
+  .meta { color: var(--soft); font-size: 13px; white-space: nowrap; }
+  .empty { padding: 28px 16px; text-align: center; color: var(--soft); }
+  #more { display: block; margin: 14px auto 0; }
+  article, #writeForm { padding: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); }
+  article h1 { margin: 6px 0 4px; font-size: 24px; line-height: 1.35; overflow-wrap: anywhere; }
+  .body { margin: 16px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #comments { list-style: none; margin: 18px 0 12px; padding: 0; border-top: 1px solid var(--line); }
+  #comments li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  #comments p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  #commentForm { display: flex; gap: 8px; }
+  #writeForm { display: grid; gap: 12px; }
+  #writeForm .row { display: flex; gap: 8px; justify-content: flex-end; }
+  /* 모임 */
+  .meets { margin-bottom: 22px; }
+  .meet { margin: 14px 0; padding: 14px 16px; border-radius: 12px; background: #f8ecd8; }
+  .meet dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 0 0 8px; }
+  .meet dt { color: var(--soft); }
+  .meet dd { margin: 0; overflow-wrap: anywhere; }
+  .meet p { margin: 6px 0 0; }
+  fieldset { display: grid; gap: 12px; margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+  /* 알림 · 신고 · 내 정보 */
+  .bell { position: relative; }
+  .bell summary { list-style: none; cursor: pointer; }
+  .bell summary b { margin-left: 2px; padding: 0 6px; border-radius: 999px; background: var(--amber); color: #2a1a0c; font-size: 12px; }
+  .bell ul { position: absolute; right: 0; top: 130%; z-index: 3; width: min(320px, 90vw); max-height: 60vh; overflow: auto; margin: 0; padding: 6px 0; list-style: none;
+             border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--ink); box-shadow: 0 10px 26px #0003; }
+  .bell li { padding: 8px 14px; font-size: 14px; }
+  .bell li.new { background: #f8ecd8; }
+  .report { display: inline-block; font-size: 13px; vertical-align: top; }
+  .report summary { cursor: pointer; text-decoration: underline; }
+  .report form { display: grid; gap: 6px; width: min(300px, 80vw); margin-top: 6px; white-space: normal; }
+  .reportRow { padding: 12px 16px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .back { display: inline-block; margin-bottom: 10px; font-size: 14px; }
