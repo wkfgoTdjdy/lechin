@@ -1162,15 +1162,18 @@ renderer.setAnimationLoop(() => {
 if (supabase) {
   try {
     await supabase.realtime.setAuth();   // 로그인한 회원 자격으로 접속 (비공개 채널은 회원만 통과)
-    const channel = supabase.channel('lounge', { config: { private: true, presence: { key: myId } } });
-    let tracked = false, sent = null, sentAt = 0;
+    let channel, tracked = false, sent = null, sentAt = 0, liveAt = now(), busy = false;
     // 채널에 실제로 붙어 있는지는 채널에게 직접 묻는다 (끊겼다가 저절로 다시 붙는 경우가 있어서, 처음 한 번 받은 신호만 믿지 않는다)
     const live = () => channel.state === 'joined';
-    const stat = { status: '-', sent: 0, sentAt: 0, fail: 0, tracks: 0, recv: new Map() };   // 진단용 숫자
+    const stat = { status: '-', sent: 0, sentAt: 0, fail: 0, tracks: 0, opens: 0, recv: new Map() };   // 진단용 숫자
     const since = (at) => (at ? (now() - at).toFixed(0) + '초 전' : '없음');
-    net.debug = () => [`채널 ${channel.state} (${stat.status})`, `내 위치 보냄 ${stat.sent}번 · 마지막 ${since(stat.sentAt)} · 실패 ${stat.fail}`, `접속 알림 ${stat.tracks}번`,
+    net.debug = () => [`채널 ${channel.state} (${stat.status})`, `내 위치 보냄 ${stat.sent}번 · 마지막 ${since(stat.sentAt)} · 실패 ${stat.fail}`, `접속 알림 ${stat.tracks}번 · 채널 연 횟수 ${stat.opens}`,
       ...[...others].map(([id, o]) => { const r = stat.recv.get(id); return `${o.mesh.userData.nick || id.slice(0, 4)}: 위치 받음 ${r?.n ?? 0}번 · 마지막 ${since(r?.at)}`; })].join('\n');
 
+    // 채널을 열고 받을 것들을 건다. 끊긴 채로 남으면 아래 주기 작업이 이걸 다시 부른다.
+    const open = () => {
+    stat.opens++;
+    channel = supabase.channel('lounge', { config: { private: true, presence: { key: myId } } });
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
       for (const id of Object.keys(state)) {
@@ -1219,10 +1222,21 @@ if (supabase) {
       console.warn('lounge channel', status, err);
       tracked = false; online = 0; showHud();
     });
+    };
+    open();
+    // 채널을 버리고 새로 연다 (화면을 껐다 켜거나 통신망이 바뀐 뒤 닫힌 채로 남는 경우). 로그인 자격도 새로 넣는다.
+    // ponytail: 안 붙으면 8초마다 계속 다시 연다. 서버가 오래 죽어 있을 때 부담이 되면 간격을 점점 늘린다.
+    const reopen = async () => {
+      if (busy) return;
+      busy = true;
+      try { await supabase.removeChannel(channel); await supabase.realtime.setAuth(); } catch (err) { console.warn('lounge reopen', err); }
+      open(); liveAt = now(); busy = false;
+    };
 
     // ponytail: 위치를 누구나 속여 보낼 수 있음(서버 검증 없음). 판정이 필요해지면 권위 서버로.
     setInterval(() => {
-      if (!live()) return;
+      if (!live()) { if (now() - liveAt > 8) reopen(); return; }
+      liveAt = now();
       if (!tracked) { tracked = true; net.state(); }   // 처음 붙었을 때, 끊겼다 다시 붙었을 때 접속을 알린다
       const { x, z } = me.position;
       if ((sent && sent.x === x && sent.z === z && now() - sentAt < 5)) return;   // 가만히 있어도 5초마다 다시 보낸다 (놓친 사람·늦게 온 사람이 내 자리를 알게)
