@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { BOARDS, mountBoard, boardCss, h } from './guestbook.js';
 import { when } from '@/lib/board';
+import { REASONS } from '@/components/Report';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 export async function start({ supabase, member }) {
@@ -1104,6 +1105,38 @@ function showHud() { hud.textContent = `📍 ${myRoom.name} · ` + (online ? `�
 
 // ── 다른 사람들 ──────────────────────────────────────
 const others = new Map();   // id → { mesh, target }
+// 내가 차단한 회원은 오두막에서도 보이지 않는다 (고양이·이름표·말풍선 모두)
+const blockedIds = new Set();
+function dropBlocked() {
+  for (const [id, o] of others) if (blockedIds.has(id)) { removeAvatar(o.mesh); others.delete(id); }
+}
+if (supabase && member) supabase.from('blocks').select('blocked').then(({ data }) => { for (const b of data ?? []) blockedIds.add(b.blocked); dropBlocked(); });
+// 다른 회원의 이름표를 누르면: 신고 · 차단
+function openMember(id) {
+  const u = others.get(id)?.mesh.userData;
+  if (!u) return;
+  const nick = u.nick || '이름 없는 회원', said = u.said ?? '';
+  openPanel(nick);
+  boardCss();
+  const msg = h('p', { className: 'bd-msg', role: 'alert' });
+  const reason = h('select', { ariaLabel: '신고 사유' }, ...REASONS.map((r) => h('option', { textContent: r })));
+  const detail = h('textarea', { rows: 2, maxLength: 500, placeholder: '설명 (선택)', ariaLabel: '설명' });
+  panelBody.replaceChildren(h('div', { className: 'bd' },
+    said && h('p', { className: 'bd-meta', textContent: '마지막으로 한 말: ' + said }),
+    reason, detail,
+    h('button', { type: 'button', textContent: '신고하기', onclick: async () => {
+      const { error } = await supabase.rpc('report_lounge', { p_member: id, p_reason: reason.value, p_text: said, p_detail: detail.value });
+      msg.textContent = !error ? '신고했어요. 운영자가 확인한 뒤 결과를 알림으로 알려 드려요.'
+        : error.message.includes('too many reports') ? '하루에 10건까지 신고할 수 있어요.' : '신고하지 못했어요: ' + error.message;
+    } }),
+    h('button', { type: 'button', textContent: '차단하기 (이 회원이 보이지 않게)', onclick: async () => {
+      const { error } = await supabase.from('blocks').upsert({ blocker: myId, blocked: id, nickname: nick });
+      if (error) return void (msg.textContent = '차단하지 못했어요: ' + error.message);
+      blockedIds.add(id); dropBlocked();
+      msg.textContent = `${nick}님을 차단했어요. 게시판의 내 정보에서 풀 수 있어요.`;
+    } }),
+    msg));
+}
 
 function resize() {
   renderer.setSize(innerWidth, innerHeight);
@@ -1177,11 +1210,13 @@ if (supabase) {
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
       for (const id of Object.keys(state)) {
-        if (id === myId) continue;
+        if (id === myId || blockedIds.has(id)) continue;
         const s = state[id].at(-1) ?? {};
         if (!others.has(id)) {
           const mesh = makeAvatar(validCat(s.cat), CLOSET.x, CLOSET.z);
           others.set(id, { mesh, target: new THREE.Vector3(CLOSET.x, 0, -3), fresh: true });   // fresh: 아직 위치를 한 번도 못 받음
+          mesh.userData.tag.classList.add('who');
+          mesh.userData.tag.onclick = () => openMember(id);
         }
         // 남이 보낸 동작·자리는 아는 값일 때만 받는다
         const o = others.get(id), u = o.mesh.userData, act = ACTS.includes(s.act) ? s.act : 'idle';
@@ -1212,6 +1247,7 @@ if (supabase) {
     // ponytail: 방 구분은 받는 쪽에서 거른다(같은 채널). 진짜 비공개가 필요하면 방마다 채널을 나눌 것.
     channel.on('broadcast', { event: 'chat' }, ({ payload }) => {
       const o = others.get(payload?.id);
+      if (o && payload.room === myRoom?.id && typeof payload.text === 'string') o.mesh.userData.said = payload.text.slice(0, 200);
       if (o && payload.room === myRoom?.id && typeof payload.text === 'string') say(o.mesh, (o.mesh.userData.nick ? o.mesh.userData.nick + ': ' : '') + payload.text.slice(0, 200));
     });
     net.state = () => { if (!live()) return; sent = null; stat.tracks++; channel.track({ room: myRoom?.id, cat: myCat, act: me.userData.act, seat: me.userData.seat, nick: member.nickname, status: me.userData.status }); };

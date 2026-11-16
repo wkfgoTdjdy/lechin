@@ -51,6 +51,7 @@ export default function Landing() {
       <label>닉네임 <input type="text" name="nickname" maxLength={20} required /></label>
       <label>초대 코드 <input type="text" name="code" autoComplete="off" required /></label>
       <label className="check"><input type="checkbox" required /> <span>{PLEDGE}</span></label>
+      <label className="check"><input type="checkbox" required /> <span><a href="/terms" target="_blank">이용 규칙</a>과 <a href="/privacy" target="_blank">개인정보 처리방침</a>에 동의합니다. 괴롭힘·혐오 표현·아우팅 같은 글과 행동은 허용되지 않으며, 어기면 이용이 정지됩니다.</span></label>
     </>
   );
 
@@ -103,7 +104,7 @@ export default function Landing() {
 
       <p id="msg" role="alert">{msg}</p>
       {/* 제목에는 서비스 이름을 넣지 않는다 (메일함에서 서비스 성격이 드러나지 않게) */}
-      <p className="meta"><a href={`mailto:${CONTACT}?subject=${encodeURIComponent('초대 코드 요청')}`}>초대 코드가 없나요? 이메일로 요청하기</a> · <a href="/privacy">개인정보 처리방침</a></p>
+      <p className="meta"><a href={`mailto:${CONTACT}?subject=${encodeURIComponent('초대 코드 요청')}`}>초대 코드가 없나요? 이메일로 요청하기</a> · <a href="/terms">이용 규칙</a> · <a href="/privacy">개인정보 처리방침</a></p>
     </section>
   );
 }

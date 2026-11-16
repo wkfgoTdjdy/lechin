@@ -15,6 +15,7 @@
                   gap: 6px; padding: 10px; border-radius: 14px; background: #2a1d14f2; }
   .emo { position: fixed; left: 0; top: 0; font-size: 26px; pointer-events: none; }
   .tag { position: fixed; left: 0; top: 0; padding: 2px 8px; border-radius: 999px; background: #0009; color: #fff; font-size: 12px; white-space: nowrap; pointer-events: none; }
+  .tag.who { pointer-events: auto; cursor: pointer; padding: 5px 10px; }   /* 다른 회원 이름표: 누르면 신고·차단 */
   #panel { position: fixed; right: 12px; top: 64px; bottom: 120px; width: min(360px, calc(100vw - 24px)); padding: 14px; border-radius: 14px; overflow: auto;
            background: #2a1d14f2; color: #f6e7d3; box-shadow: 0 8px 30px #0008; }
   #panel { z-index: 2147483647; }   /* 조이스틱·말풍선·단추보다 항상 위 */
