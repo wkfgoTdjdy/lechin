@@ -36,11 +36,12 @@ export default function Landing() {
   }
   const login = submit(async ({ email, password }) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setMsg('이메일 또는 비밀번호를 확인해 주세요.');
+    if (error) setMsg(error.message.includes('not confirmed') ? '이메일 확인이 아직 안 됐어요. 받은 메일의 링크를 눌러 주세요.' : '이메일 또는 비밀번호를 확인해 주세요.');
   });
   const join = submit(async ({ email, password, nickname, code }) => {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return setMsg('가입하지 못했어요: ' + error.message);
+    if (data.user?.identities?.length === 0) return setMsg('이미 가입된 이메일이에요. 로그인해 주세요.');   // Supabase 는 오류 없이 빈 계정을 돌려준다
     if (!data.session) return setMsg('확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하면 초대 코드를 넣을 수 있어요.');
     await redeem(code, nickname);   // 코드가 틀리면 로그인된 채로 "초대 코드 입력" 화면이 뜬다
   });

@@ -804,7 +804,7 @@ renderer.domElement.addEventListener('click', (e) => {
 const MOVE_KEYS = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1],
                     KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 const held = new Set();
-// 터치 화면용 동그란 조이스틱 (왼쪽 아래). 민 방향으로 걷는다. 키보드와 같은 길(applyKeys)을 탄다.
+// 터치 화면용 동그란 조이스틱 (오른쪽 아래). 민 방향으로 걷는다. 키보드와 같은 길(applyKeys)을 탄다.
 const stick = { x: 0, z: 0 };
 {
   const base = document.getElementById('stick'), knob = base.firstElementChild;
@@ -1144,6 +1144,7 @@ function resize() {
   camera.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+visualViewport?.addEventListener('resize', resize);   // 휴대폰에서 확대·키보드로 보이는 크기가 바뀌었다 돌아올 때도 다시 맞춘다
 resize();
 
 // 입장 연출: 로딩 화면의 문이 열리고 → 3D 벽장 문이 열리고 → 고양이가 걸어 나오고 → 카메라가 뒤로 빠진다.
