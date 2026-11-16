@@ -41,7 +41,9 @@
   button { padding: 9px 15px; border: 0; border-radius: 999px; background: #fffd; color: #222; font: inherit; cursor: pointer; }
   button:hover, button:focus-visible { background: #fff; }
   button:disabled { opacity: .45; cursor: not-allowed; }
-  #chat { width: min(420px, calc(100vw - 32px)); padding: 10px 14px; border: 0; border-radius: 999px; background: #fffd; font: inherit; box-sizing: border-box; }
+  #chatForm { display: flex; gap: 6px; width: min(420px, calc(100vw - 32px)); }   /* 입력칸 + 보내기 단추 (휴대폰 키보드에는 Enter 가 없을 수 있다) */
+  #chatForm button { flex: none; background: #f0a64a; font-weight: 700; }
+  #chat { flex: 1; min-width: 0; padding: 10px 14px; border: 0; border-radius: 999px; background: #fffd; font: inherit; box-sizing: border-box; }
   .bubble { position: fixed; left: 0; top: 0; max-width: 220px; padding: 6px 10px; border-radius: 12px; background: #fff; color: #222;
             font-size: 14px; overflow-wrap: anywhere; pointer-events: none; box-shadow: 0 2px 6px #0003; }
 
